@@ -1,6 +1,6 @@
 <?php
 require "vendor/autoload.php";
-include_once 'rubiconAnalyticsReport.php';
+include_once 'RubiconAnalyticsReport.php';
 
 // read the configuration file
 $dataDir = getenv('KBC_DATADIR') . DIRECTORY_SEPARATOR;
