@@ -8,7 +8,7 @@ $configFile = $dataDir . 'config.json';
 $config = json_decode(file_get_contents($configFile), true);
 
 try {
-    $rubiconAnalyticsReport = new RubiconAnalyticsReport($config);
+    $rubiconAnalyticsReport = new RubiconAnalyticsReport($config['parameters']);
     $response = $rubiconAnalyticsReport->call();
 
     if (isset($response['statusCode'])

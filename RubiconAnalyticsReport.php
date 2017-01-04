@@ -12,12 +12,6 @@ class RubiconAnalyticsReport {
 
     private function getRubiconApiSpecification($file_name = __DIR__.'/conversions.json') {
         $array = json_decode(file_get_contents($file_name), true);
-
-//        $array = array_map('str_getcsv', file($file_name));
-//        $header = array_shift($array);
-//        array_walk($array, function (&$row, $key, $header) {
-//            $row = array_combine($header, $row);
-//        }, $header);
         return $array;
     }
 
