@@ -1,30 +1,49 @@
 <?php
 require "vendor/autoload.php";
+include_once 'rubiconAnalyticsReport.php';
 
 // read the configuration file
 $dataDir = getenv('KBC_DATADIR') . DIRECTORY_SEPARATOR;
 $configFile = $dataDir . 'config.json';
 $config = json_decode(file_get_contents($configFile), true);
-$multiplier = $config['parameters']['multiplier'];
-// create output file and write header
-$outFile = new \Keboola\Csv\CsvFile(
-    $dataDir . 'out' . DIRECTORY_SEPARATOR . 'tables' . DIRECTORY_SEPARATOR . 'destination.csv'
-);
-$outFile->writeRow(['number', 'someText', 'double_number']);
-// read input file and write rows of output file
-$inFile = new Keboola\Csv\CsvFile($dataDir . 'in' . DIRECTORY_SEPARATOR . 'tables' . DIRECTORY_SEPARATOR . 'source.csv');
-foreach ($inFile as $rowNum => $row) {
-    if ($rowNum == 0) {
-        // skip header
-        continue;
-    }
-    $outFile->writeRow([
-        $row[0],
-        $row[1],
-        $row[0] * $multiplier
-    ]);
-}
+
 try {
+    $rubiconAnalyticsReport = new RubiconAnalyticsReport($config);
+    $response = $rubiconAnalyticsReport->call();
+
+    if (isset($response['statusCode'])
+        && (intval($response['statusCode']) >= 200 && intval($response['statusCode'] < 400))
+    ) {
+
+        $outFile = new \Keboola\Csv\CsvFile(
+            $dataDir . 'out' . DIRECTORY_SEPARATOR . 'tables' . DIRECTORY_SEPARATOR . 'destination.csv'
+        );
+
+        $data = json_decode($response['result']);
+        if (isset($data->data)
+            && isset($data->data->items)
+            && is_array($data->data->items)
+        ) {
+            $items = $data->data->items;
+
+            $outFile->writeRow(
+                array_keys(get_object_vars($items[0]))
+            );
+
+            foreach ($items as $item) {
+                $outFile->writeRow(
+                    array_values(get_object_vars($item))
+                );
+            }
+        }
+
+    } else {
+        if (isset($response['error'])) {
+            echo $response['error'];
+            exit(2);
+        }
+    }
+
 } catch (InvalidArgumentException $e) {
     echo $e->getMessage();
     exit(1);
