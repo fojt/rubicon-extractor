@@ -41,7 +41,7 @@ $apiTimeShift = -8 - (intval(date('Z')) / $hour);
 $zoneDiff = $hour * $apiTimeShift;
 
 
-for ($h = 0; $h < 2; $h++) {
+for ($h = 0; $h < 24; $h++) {
     if($h < 10) {
         $hh = '0'.$h;
     } else {
