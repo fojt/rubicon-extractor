@@ -7,47 +7,85 @@ $dataDir = getenv('KBC_DATADIR') . DIRECTORY_SEPARATOR;
 $configFile = $dataDir . 'config.json';
 $config = json_decode(file_get_contents($configFile), true);
 
-try {
-    $rubiconAnalyticsReport = new RubiconAnalyticsReport($config['parameters']);
-    $response = $rubiconAnalyticsReport->call();
+$outFile = new \Keboola\Csv\CsvFile(
+    $dataDir . 'out' . DIRECTORY_SEPARATOR . 'tables' . DIRECTORY_SEPARATOR . 'output.csv'
+);
+$isSetOutFileHeader = false;
 
-    if (isset($response['statusCode'])
-        && (intval($response['statusCode']) >= 200 && intval($response['statusCode'] < 400))
-    ) {
+$outErrors = new \Keboola\Csv\CsvFile(
+    $dataDir . 'out' . DIRECTORY_SEPARATOR . 'tables' . DIRECTORY_SEPARATOR . 'errors.csv'
+);
+$outErrors->writeRow(['url', 'error', 'errorData']);
 
-        $outFile = new \Keboola\Csv\CsvFile(
-            $dataDir . 'out' . DIRECTORY_SEPARATOR . 'tables' . DIRECTORY_SEPARATOR . 'destination.csv'
-        );
 
-        $data = json_decode($response['result']);
-        if (isset($data->data)
-            && isset($data->data->items)
-            && is_array($data->data->items)
-        ) {
-            $items = $data->data->items;
+if (!isset($config['parameters']) || !$config['parameters']) {
+    echo 'Missing config parameters';
+    exit(1);
+}
 
-            $outFile->writeRow(
-                array_keys(get_object_vars($items[0]))
-            );
+if (!isset($config['parameters']['params'])) {
+    echo 'Missing call params';
+    exit(1);
+}
+
+$dayBack = 1;
+if (isset($config['parameters']['dayBack'])) {
+    if (intval($config['parameters']['dayBack']) > 0) {
+        $dayBack = intval($config['parameters']['dayBack']);
+    }
+}
+
+$hour = 3600;
+$day = 86400 * $dayBack;
+$apiTimeShift = -8 - (intval(date('Z')) / $hour);
+$zoneDiff = $hour * $apiTimeShift;
+
+
+for ($h = 0; $h < 2; $h++) {
+    if($h < 10) {
+        $hh = '0'.$h;
+    } else {
+        $hh = $h;
+    }
+    $yesterday = date('Y-m-d', time() - $day);
+    $start = date('Y-m-d\TH:i:s-08:00', strtotime($yesterday . 'T' . $hh . ':00:00' . date('P')) + $zoneDiff);
+    $end = date('Y-m-d\TH:i:s-08:00', strtotime($yesterday . 'T' . $hh . ':59:00' . date('P')) + $zoneDiff);
+
+    $config['parameters']['params']['start'] = $start;
+    $config['parameters']['params']['end'] = $end;
+
+    try {
+        $rubiconAnalyticsReport = new RubiconAnalyticsReport($config['parameters']);
+        $response = $rubiconAnalyticsReport->call();
+
+
+        if (isset($response['items']) && $response['items']) {
+            $items = $response['items'];
+
+            if (!$isSetOutFileHeader) {
+                $outFile->writeRow(array_keys($items[0]));
+                $isSetOutFileHeader = true;
+            }
 
             foreach ($items as $item) {
-                $outFile->writeRow(
-                    array_values(get_object_vars($item))
-                );
+                $item['date'] = $yesterday . ' ' . $hh . ':00:00';
+                $outFile->writeRow(array_values($item));
             }
         }
 
-    } else {
-        if (isset($response['error'])) {
-            echo $response['error'];
-            exit(2);
-        }
-    }
 
-} catch (InvalidArgumentException $e) {
-    echo $e->getMessage();
-    exit(1);
-} catch (\Throwable $e) {
-    echo $e->getMessage();
-    exit(2);
+        /* Errors */
+        if (isset($response['errors'])) {
+            foreach ($response['errors'] as $error) {
+                $outFile->writeRow(array_values($error));
+            }
+        }
+
+    } catch (InvalidArgumentException $e) {
+        echo $e->getMessage();
+        exit(1);
+    } catch (\Throwable $e) {
+        echo $e->getMessage();
+        exit(2);
+    }
 }
