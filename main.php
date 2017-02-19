@@ -13,7 +13,7 @@ $outFile = new \Keboola\Csv\CsvFile(
 $isSetOutFileHeader = false;
 
 $outErrors = new \Keboola\Csv\CsvFile(
-    $dataDir . 'out' . DIRECTORY_SEPARATOR . 'tables' . DIRECTORY_SEPARATOR . 'errors.csv'
+    $dataDir . 'out' . DIRECTORY_SEPARATOR . 'tables' . DIRECTORY_SEPARATOR . 'api-errors.csv'
 );
 $outErrors->writeRow(['url', 'error', 'errorData']);
 
